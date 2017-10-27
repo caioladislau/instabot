@@ -53,7 +53,7 @@ class InstaBot:
 
     user_agent = ("Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 "
                   "(KHTML, like Gecko) Chrome/48.0.2564.103 Safari/537.36")
-    accept_language = 'ru-RU,ru;q=0.8,en-US;q=0.6,en;q=0.4'
+    accept_language = 'pt-br,pt;q=1.0,en-US;q=0.6,en;q=0.4'
 
     # If instagram ban you - query return 400 error.
     error_400 = 0
@@ -92,7 +92,7 @@ class InstaBot:
     self_follower = 0
 
     # Log setting.
-    log_file_path = ''
+    log_file_path = 'log/'
     log_file = 0
 
     # Other.
@@ -108,7 +108,7 @@ class InstaBot:
     def __init__(self,
                  login,
                  password,
-                 like_per_day=1000,
+                 like_per_day=900,
                  media_max_like=50,
                  media_min_like=0,
                  follow_per_day=0,
