@@ -425,6 +425,7 @@ class InstaBot:
                                     # Some error. If repeated - can be ban!
                                     if self.error_400 >= self.error_400_to_ban:
                                         # Look like you banned!
+                                        self.write_log("Looks Like You Banned")
                                         time.sleep(self.ban_sleep_time)
                                     else:
                                         self.error_400 += 1
@@ -660,10 +661,10 @@ class InstaBot:
         check_comment = self.s.get(url_check)
         all_data = json.loads(check_comment.text)
         if all_data['graphql']['shortcode_media']['owner']['id'] == self.user_id:
-                self.write_log("Keep calm - It's your own media ;)")
-                # Del media to don't loop on it
-                del self.media_by_tag[0]
-                return True
+            self.write_log("Keep calm - It's your own media ;)")
+            # Del media to don't loop on it
+            del self.media_by_tag[0]
+            return True
         comment_list = list(all_data['graphql']['shortcode_media']['edge_media_to_comment']['edges'])
         for d in comment_list:
             if d['node']['owner']['id'] == self.user_id:
@@ -683,7 +684,11 @@ class InstaBot:
             self.get_media_id_recent_feed()
         if len(self.media_on_feed) != 0:
             chooser = random.randint(0, len(self.media_on_feed) - 1)
-            current_id = self.media_on_feed[chooser]['node']["owner"]["id"]
+            if "owner" in self.media_on_feed[chooser]["node"]:
+                current_id = self.media_on_feed[chooser]['node']["owner"]["id"]
+            else:
+                print("   >>>> owner error")
+                return
             current_user = self.media_on_feed[chooser]['node']["owner"][
                 "username"]
 
