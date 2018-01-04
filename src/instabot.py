@@ -22,20 +22,14 @@ class InstaBot:
     """
     Instagram bot v 1.1.0
     like_per_day=1000 - How many likes set bot in one day.
-
     media_max_like=0 - Don't like media (photo or video) if it have more than
     media_max_like likes.
-
     media_min_like=0 - Don't like media (photo or video) if it have less than
     media_min_like likes.
-
     tag_list = ['cat', 'car', 'dog'] - Tag list to like.
-
     max_like_for_one_tag=5 - Like 1 to max_like_for_one_tag times by row.
-
     log_mod = 0 - Log mod: log_mod = 0 log to console, log_mod = 1 log to file,
     log_mod = 2 no log.
-
     https://github.com/LevPasha/instabot.py
     """
 
@@ -108,7 +102,7 @@ class InstaBot:
     def __init__(self,
                  login,
                  password,
-                 like_per_day=900,
+                 like_per_day=950,
                  media_max_like=50,
                  media_min_like=0,
                  follow_per_day=0,
@@ -329,7 +323,7 @@ class InstaBot:
                     r = self.s.get(url_tag)
                     all_data = json.loads(r.text)
 
-                    self.media_by_tag = list(all_data['tag']['media']['nodes'])
+                    self.media_by_tag = list(all_data['graphql']['hashtag']['edge_hashtag_to_media']['edges'])
                 except:
                     self.media_by_tag = []
                     self.write_log("Except on get_media!")
@@ -346,7 +340,7 @@ class InstaBot:
                     # Media count by this tag.
                     if media_size > 0 or media_size < 0:
                         media_size -= 1
-                        l_c = self.media_by_tag[i]['likes']['count']
+                        l_c = self.media_by_tag[i]['node']['edge_liked_by']['count']
                         if ((l_c <= self.media_max_like and
                              l_c >= self.media_min_like) or
                             (self.media_max_like == 0 and
@@ -357,21 +351,21 @@ class InstaBot:
                              self.media_max_like == 0)):
                             for blacklisted_user_name, blacklisted_user_id in self.user_blacklist.items(
                             ):
-                                if self.media_by_tag[i]['owner'][
+                                if self.media_by_tag[i]['node']['owner'][
                                         'id'] == blacklisted_user_id:
                                     self.write_log(
                                         "Not liking media owned by blacklisted user: "
                                         + blacklisted_user_name)
                                     return False
-                            if self.media_by_tag[i]['owner'][
+                            if self.media_by_tag[i]['node']['owner'][
                                     'id'] == self.user_id:
                                 self.write_log(
                                     "Keep calm - It's your own media ;)")
                                 return False
 
                             try:
-                                caption = self.media_by_tag[i][
-                                    'caption'].encode(
+                                caption = self.media_by_tag[i]['node'][
+                                    'edge_media_to_caption']['edges'][0]['node']['text'].encode(
                                         'ascii', errors='ignore')
                                 tag_blacklist = set(self.tag_blacklist)
                                 if sys.version_info[0] == 3:
@@ -404,9 +398,9 @@ class InstaBot:
                                 return False
 
                             log_string = "Trying to like media: %s" % \
-                                         (self.media_by_tag[i]['id'])
+                                         (self.media_by_tag[i]['node']['id'])
                             self.write_log(log_string)
-                            like = self.like(self.media_by_tag[i]['id'])
+                            like = self.like(self.media_by_tag[i]['node']['id'])
                             # comment = self.comment(self.media_by_tag[i]['id'], 'Cool!')
                             # follow = self.follow(self.media_by_tag[i]["owner"]["id"])
                             if like != 0:
@@ -415,7 +409,7 @@ class InstaBot:
                                     self.error_400 = 0
                                     self.like_counter += 1
                                     log_string = "Liked: %s. Like #%i." % \
-                                                 (self.media_by_tag[i]['id'],
+                                                 (self.media_by_tag[i]['node']['id'],
                                                   self.like_counter)
                                     self.write_log(log_string)
                                 elif like.status_code == 400:
@@ -425,7 +419,6 @@ class InstaBot:
                                     # Some error. If repeated - can be ban!
                                     if self.error_400 >= self.error_400_to_ban:
                                         # Look like you banned!
-                                        self.write_log("Looks Like You Banned")
                                         time.sleep(self.ban_sleep_time)
                                     else:
                                         self.error_400 += 1
@@ -603,16 +596,16 @@ class InstaBot:
     def new_auto_mod_follow(self):
         if time.time() > self.next_iteration["Follow"] and \
                         self.follow_per_day != 0 and len(self.media_by_tag) > 0:
-            if self.media_by_tag[0]["owner"]["id"] == self.user_id:
+            if self.media_by_tag[0]['node']["owner"]["id"] == self.user_id:
                 self.write_log("Keep calm - It's your own profile ;)")
                 return
             log_string = "Trying to follow: %s" % (
-                self.media_by_tag[0]["owner"]["id"])
+                self.media_by_tag[0]['node']["owner"]["id"])
             self.write_log(log_string)
 
-            if self.follow(self.media_by_tag[0]["owner"]["id"]) != False:
+            if self.follow(self.media_by_tag[0]['node']["owner"]["id"]) != False:
                 self.bot_follow_list.append(
-                    [self.media_by_tag[0]["owner"]["id"], time.time()])
+                    [self.media_by_tag[0]['node']["owner"]["id"], time.time()])
                 self.next_iteration["Follow"] = time.time() + \
                                                 self.add_time(self.follow_delay)
 
@@ -635,11 +628,11 @@ class InstaBot:
     def new_auto_mod_comments(self):
         if time.time() > self.next_iteration["Comments"] and self.comments_per_day != 0 \
                 and len(self.media_by_tag) > 0 \
-                and self.check_exisiting_comment(self.media_by_tag[0]['code']) == False:
+                and self.check_exisiting_comment(self.media_by_tag[0]['node']['comments_disabled']) == False:
             comment_text = self.generate_comment()
-            log_string = "Trying to comment: %s" % (self.media_by_tag[0]['id'])
+            log_string = "Trying to comment: %s" % (self.media_by_tag[0]['node']['id'])
             self.write_log(log_string)
-            if self.comment(self.media_by_tag[0]['id'], comment_text) != False:
+            if self.comment(self.media_by_tag[0]['node']['id'], comment_text) != False:
                 self.next_iteration["Comments"] = time.time() + \
                                                   self.add_time(self.comments_delay)
 
@@ -661,10 +654,10 @@ class InstaBot:
         check_comment = self.s.get(url_check)
         all_data = json.loads(check_comment.text)
         if all_data['graphql']['shortcode_media']['owner']['id'] == self.user_id:
-            self.write_log("Keep calm - It's your own media ;)")
-            # Del media to don't loop on it
-            del self.media_by_tag[0]
-            return True
+                self.write_log("Keep calm - It's your own media ;)")
+                # Del media to don't loop on it
+                del self.media_by_tag[0]
+                return True
         comment_list = list(all_data['graphql']['shortcode_media']['edge_media_to_comment']['edges'])
         for d in comment_list:
             if d['node']['owner']['id'] == self.user_id:
@@ -684,11 +677,7 @@ class InstaBot:
             self.get_media_id_recent_feed()
         if len(self.media_on_feed) != 0:
             chooser = random.randint(0, len(self.media_on_feed) - 1)
-            if "owner" in self.media_on_feed[chooser]["node"]:
-                current_id = self.media_on_feed[chooser]['node']["owner"]["id"]
-            else:
-                print("   >>>> owner error")
-                return
+            current_id = self.media_on_feed[chooser]['node']["owner"]["id"]
             current_user = self.media_on_feed[chooser]['node']["owner"][
                 "username"]
 
@@ -741,11 +730,11 @@ class InstaBot:
                         self.write_log(log_string)
                         log_string = "Media : %i" % (media)
                         self.write_log(log_string)
-                        if follower / follows > 2:
+                        if follows == 0 or follower / follows > 2:
                             self.is_selebgram = True
                             self.is_fake_account = False
                             print('   >>>This is probably Selebgram account')
-                        elif follows / follower > 2:
+                        elif follower == 0 or follows / follower > 2:
                             self.is_fake_account = True
                             self.is_selebgram = False
                             print('   >>>This is probably Fake account')
@@ -754,7 +743,7 @@ class InstaBot:
                             self.is_fake_account = False
                             print('   >>>This is a normal account')
 
-                        if follows / media < 10 and follower / media < 10:
+                        if media > 0 and follows / media < 10 and follower / media < 10:
                             self.is_active_user = True
                             print('   >>>This user is active')
                         else:
