@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
-import sys
 import time
-
-sys.path.append(os.path.join(sys.path[0], 'src'))
 
 from src import InstaBot
 from src.check_status import check_status
