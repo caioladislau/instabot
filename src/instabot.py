@@ -19,7 +19,6 @@ from .sql_updates import check_and_update, check_already_liked, check_already_fo
 from .sql_updates import insert_media, insert_username, insert_unfollow_count
 from .sql_updates import get_usernames_first, get_usernames, get_username_random
 from .sql_updates import check_and_insert_user_agent
-from fake_useragent import UserAgent
 
 class InstaBot:
     """
