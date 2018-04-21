@@ -3,14 +3,14 @@
 
 import json
 import requests
-
+import re
 class UserInfo:
     '''
     This class try to take some user info (following, followers, etc.)
     '''
     user_agent = ("Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 "
                   "(KHTML, like Gecko) Chrome/48.0.2564.103 Safari/537.36")
-    url_user_info = "https://www.instagram.com/%s/?__a=1"
+    url_user_info = "https://www.instagram.com/%s/"
     url_list = {
         "ink361": {
             "main": "http://ink361.com/",
@@ -38,8 +38,7 @@ class UserInfo:
     def get_user_id_by_login(self, user_name):
         url_info = self.url_user_info % (user_name)
         info = self.s.get(url_info)
-        all_data = json.loads(info.text)
-        id_user = all_data['graphql']['user']['id']
+	id_user = re.search(r',"id":"(.*?)",', info.text).group(1)
         return id_user
 
     def search_user(self, user_id=None, user_name=None):
