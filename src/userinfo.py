@@ -4,6 +4,7 @@
 import json
 import requests
 import re
+
 class UserInfo:
     '''
     This class try to take some user info (following, followers, etc.)
@@ -38,7 +39,8 @@ class UserInfo:
     def get_user_id_by_login(self, user_name):
         url_info = self.url_user_info % (user_name)
         info = self.s.get(url_info)
-	id_user = re.search(r',"id":"(.*?)",', info.text).group(1)
+        json_info = json.loads(re.search('{"activity.+show_app', info.text, re.DOTALL).group(0)+'":""}')
+        id_user = json_info['entry_data']['ProfilePage'][0]['graphql']['user']['id']
         return id_user
 
     def search_user(self, user_id=None, user_name=None):

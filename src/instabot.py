@@ -19,6 +19,8 @@ from .sql_updates import check_and_update, check_already_liked, check_already_fo
 from .sql_updates import insert_media, insert_username, insert_unfollow_count
 from .sql_updates import get_usernames_first, get_usernames, get_username_random
 from .sql_updates import check_and_insert_user_agent
+from fake_useragent import UserAgent
+import re
 
 class InstaBot:
     """
@@ -46,6 +48,7 @@ class InstaBot:
 
     url = 'https://www.instagram.com/'
     url_tag = 'https://www.instagram.com/explore/tags/%s/?__a=1'
+    url_location = 'https://www.instagram.com/explore/locations/%s/?__a=1'
     url_likes = 'https://www.instagram.com/web/likes/%s/like/'
     url_unlike = 'https://www.instagram.com/web/likes/%s/unlike/'
     url_comment = 'https://www.instagram.com/web/comments/%s/add/'
@@ -54,7 +57,7 @@ class InstaBot:
     url_login = 'https://www.instagram.com/accounts/login/ajax/'
     url_logout = 'https://www.instagram.com/accounts/logout/'
     url_media_detail = 'https://www.instagram.com/p/%s/?__a=1'
-    url_user_detail = 'https://www.instagram.com/%s/?__a=1'
+    url_user_detail = 'https://www.instagram.com/%s/'
     api_user_detail = 'https://i.instagram.com/api/v1/users/%s/info/'
 
     user_agent = "" ""
@@ -98,7 +101,7 @@ class InstaBot:
 
     # Log setting.
     logging.basicConfig(filename='errors.log', level=logging.INFO)
-    log_file_path = 'log/'
+    log_file_path = ''
     log_file = 0
 
     # Other.
@@ -107,6 +110,7 @@ class InstaBot:
     media_on_feed = []
     media_by_user = []
     login_status = False
+    by_location = False
 
     # Running Times
     start_at_h = 0,
@@ -158,6 +162,8 @@ class InstaBot:
         self.follows_db = sqlite3.connect(database_name, timeout=0, isolation_level=None)
         self.follows_db_c = self.follows_db.cursor()
         check_and_update(self)
+        fake_ua = UserAgent()
+        self.user_agent = check_and_insert_user_agent(self, str(fake_ua.random))
         self.bot_start = datetime.datetime.now()
         self.start_at_h = start_at_h
         self.start_at_m = start_at_m
@@ -342,23 +348,43 @@ class InstaBot:
             self.logout()
 
     def get_media_id_by_tag(self, tag):
-        """ Get media ID set, by your hashtag """
+        """ Get media ID set, by your hashtag or location """
 
         if self.login_status:
-            log_string = "Get media id by tag: %s" % (tag)
-            self.write_log(log_string)
-            if self.login_status == 1:
-                url_tag = self.url_tag % (tag)
-                try:
-                    r = self.s.get(url_tag)
-                    all_data = json.loads(r.text)
-                    self.media_by_tag = list(all_data['graphql']['hashtag']['edge_hashtag_to_media']['edges'])
-                except:
-                    self.media_by_tag = []
-                    self.write_log("Except on get_media!")
-                    logging.exception("get_media_id_by_tag")
+            if tag.startswith('l:'):
+                tag = tag.replace('l:', '')
+                self.by_location = True
+                log_string = "Get Media by location: %s" % (tag)
+                self.write_log(log_string)
+                if self.login_status == 1:
+                    url_location = self.url_location % (tag)
+                    try:
+                        r = self.s.get(url_location)
+                        all_data = json.loads(r.text)
+                        self.media_by_tag = list(all_data['graphql']['location']['edge_location_to_media']['edges'])
+                    except:
+                        self.media_by_tag = []
+                        self.write_log("Except on get_media!")
+                        logging.exception("get_media_id_by_tag")
+                else:
+                    return 0
+                    
             else:
-                return 0
+                log_string = "Get Media by tag: %s" % (tag)
+                self.by_location = False
+                self.write_log(log_string)
+                if self.login_status == 1:
+                    url_tag = self.url_tag % (tag)
+                    try:
+                        r = self.s.get(url_tag)
+                        all_data = json.loads(r.text)
+                        self.media_by_tag = list(all_data['graphql']['hashtag']['edge_hashtag_to_media']['edges'])
+                    except:
+                        self.media_by_tag = []
+                        self.write_log("Except on get_media!")
+                        logging.exception("get_media_id_by_tag")
+                else:
+                    return 0
 
     def get_instagram_url_from_media_id(self, media_id, url_flag=True, only_code=None):
         """ Get Media Code or Full Url from Media ID Thanks to Nikished """
@@ -840,16 +866,16 @@ class InstaBot:
                 url_tag = self.url_user_detail % (current_user)
                 try:
                     r = self.s.get(url_tag)
-                    all_data = json.loads(r.text)
+                    all_data = json.loads(re.search('{"activity.+show_app', r.text, re.DOTALL).group(0)+'":""}')['entry_data']['ProfilePage'][0]
 
-                    user_info = all_data['user']
+                    user_info = all_data['graphql']['user']
                     i = 0
                     log_string = "Checking user info.."
                     self.write_log(log_string)
 
-                    follows = user_info['follows']['count']
-                    follower = user_info['followed_by']['count']
-                    media = user_info['media']['count']
+                    follows = user_info['edge_follow']['count']
+                    follower = user_info['edge_followed_by']['count']
+                    media = user_info['edge_owner_to_timeline_media']['count']
                     follow_viewer = user_info['follows_viewer']
                     followed_by_viewer = user_info[
                         'followed_by_viewer']
