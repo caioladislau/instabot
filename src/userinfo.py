@@ -9,8 +9,8 @@ class UserInfo:
     '''
     This class try to take some user info (following, followers, etc.)
     '''
-    user_agent = ("Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 "
-                  "(KHTML, like Gecko) Chrome/48.0.2564.103 Safari/537.36")
+    user_agent = ("Mozilla/5.0 (Linux; Android 7.1; Mi A1 Build/N2G47H) AppleWebKit/537.36 "
+                  "(KHTML, like Gecko) Chrome/58.0.3029.83 Mobile Safari/537.36")
     url_user_info = "https://www.instagram.com/%s/"
     url_list = {
         "ink361": {
@@ -39,7 +39,7 @@ class UserInfo:
     def get_user_id_by_login(self, user_name):
         url_info = self.url_user_info % (user_name)
         info = self.s.get(url_info)
-        json_info = json.loads(re.search('{"activity.+show_app', info.text, re.DOTALL).group(0)+'":""}')
+        json_info = json.loads(re.search('{"activity.+gatekeepers', info.text, re.DOTALL).group(0)+'":""}')
         id_user = json_info['entry_data']['ProfilePage'][0]['graphql']['user']['id']
         return id_user
 
